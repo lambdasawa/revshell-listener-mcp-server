@@ -1,4 +1,4 @@
-module github.com/lambdasawa/revshell-listener-mcp-server
+module github.com/lambdasawa/oob-probe-mcp-server
 
 go 1.25.5
 

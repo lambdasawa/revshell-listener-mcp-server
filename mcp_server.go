@@ -118,8 +118,8 @@ func encodeData(data []byte, encoding string) (string, error) {
 
 func newMCPServer(mgr *ListenerManager) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "revshell-listener-mcp",
-		Title:   "Reverse-shell listener MCP server",
+		Name:    "oob-probe-mcp",
+		Title:   "OOB probe MCP server",
 		Version: "0.1.0",
 	}, nil)
 

@@ -12,15 +12,15 @@ func sendDesktopNotification(body string) {
 		return
 	}
 	go func() {
-		beeep.AppName = "revshell-listener-mcp"
-		if err := beeep.Notify("revshell-listener-mcp", body, ""); err != nil {
+		beeep.AppName = "oob-probe-mcp"
+		if err := beeep.Notify("oob-probe-mcp", body, ""); err != nil {
 			// TODO: handle error
 		}
 	}()
 }
 
 func desktopNotificationsEnabled() bool {
-	value, ok := os.LookupEnv("REVSHELL_LISTENER_ENABLE_DESKTOP_NOTIFICATION")
+	value, ok := os.LookupEnv("OOB_PROBE_ENABLE_DESKTOP_NOTIFICATION")
 	if !ok {
 		return true
 	}
