@@ -118,12 +118,12 @@ func encodeData(data []byte, encoding string) (string, error) {
 
 func newMCPServer(mgr *ListenerManager) *mcp.Server {
 	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "oob-probe-mcp",
-		Title:   "OOB probe MCP server",
+		Name:    "oob-probe-mcp-server",
+		Title:   "OOB probe MCP server for reverse shell and SSRF testing",
 		Version: "0.1.0",
 	}, nil)
 
-	mcp.AddTool(server, &mcp.Tool{Name: "status", Description: "Show listeners, connections, and async errors."},
+	mcp.AddTool(server, &mcp.Tool{Name: "status", Description: "[ReverseShell/SSRF] Show TCP/HTTP listeners, connections, and errors."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args statusArgs) (*mcp.CallToolResult, any, error) {
 			result := statusResult{
 				Listeners: mgr.GetStatus(),
@@ -131,7 +131,7 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, result, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "listen_tcp", Description: "Start listening on a TCP port."},
+	mcp.AddTool(server, &mcp.Tool{Name: "listen_tcp", Description: "[ReverseShell] Start listening on a TCP port."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args listenTCPArgs) (*mcp.CallToolResult, any, error) {
 			l, err := mgr.ListenTCP(args.Port)
 			if err != nil {
@@ -144,20 +144,7 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, result, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "listen_http", Description: "Start listening on an HTTP port."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args listenHTTPArgs) (*mcp.CallToolResult, any, error) {
-			l, err := mgr.ListenHTTP(args.Port)
-			if err != nil {
-				return nil, nil, err
-			}
-			result := listenHTTPResult{
-				Port:      l.backendPort,
-				PublicURL: l.tunnel.URL(),
-			}
-			return nil, result, nil
-		})
-
-	mcp.AddTool(server, &mcp.Tool{Name: "close_tcp", Description: "Stop listening on a TCP port and close connections."},
+	mcp.AddTool(server, &mcp.Tool{Name: "close_tcp", Description: "[ReverseShell] Stop listening on a TCP port and close connections."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args closeTCPArgs) (*mcp.CallToolResult, any, error) {
 			if err := mgr.CloseTCP(args.Port); err != nil {
 				return nil, nil, err
@@ -165,15 +152,7 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, closeTCPResult{Port: args.Port}, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "close_http", Description: "Stop listening on an HTTP port."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args closeHTTPArgs) (*mcp.CallToolResult, any, error) {
-			if err := mgr.CloseHTTP(args.Port); err != nil {
-				return nil, nil, err
-			}
-			return nil, closeHTTPResult{Port: args.Port}, nil
-		})
-
-	mcp.AddTool(server, &mcp.Tool{Name: "send_tcp", Description: "Send data to a TCP connection."},
+	mcp.AddTool(server, &mcp.Tool{Name: "send_tcp", Description: "[ReverseShell] Send data to a TCP connection."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args sendTCPArgs) (*mcp.CallToolResult, any, error) {
 			data, err := decodeData(args.Data, args.Encoding)
 			if err != nil {
@@ -191,7 +170,7 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, sendTCPResult{Port: args.Port, Bytes: len(data)}, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "read_tcp", Description: "Read TCP log bytes for a port with an offset/limit for scrolling."},
+	mcp.AddTool(server, &mcp.Tool{Name: "read_tcp", Description: "[ReverseShell] Read TCP session logs."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args readTCPArgs) (*mcp.CallToolResult, any, error) {
 			l, ok := mgr.GetTCP(args.Port)
 			if !ok {
@@ -216,7 +195,20 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, result, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "read_http", Description: "Read HTTP log bytes for a port with an offset/limit for scrolling."},
+	mcp.AddTool(server, &mcp.Tool{Name: "listen_http", Description: "[SSRF] Start listening on an HTTP port."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args listenHTTPArgs) (*mcp.CallToolResult, any, error) {
+			l, err := mgr.ListenHTTP(args.Port)
+			if err != nil {
+				return nil, nil, err
+			}
+			result := listenHTTPResult{
+				Port:      l.backendPort,
+				PublicURL: l.tunnel.URL(),
+			}
+			return nil, result, nil
+		})
+
+	mcp.AddTool(server, &mcp.Tool{Name: "read_http", Description: "[SSRF] Read HTTP request logs."},
 		func(ctx context.Context, req *mcp.CallToolRequest, args readHTTPArgs) (*mcp.CallToolResult, any, error) {
 			l, ok := mgr.GetHTTP(args.Port)
 			if !ok {
@@ -239,6 +231,14 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 				Data:      encoded,
 			}
 			return nil, result, nil
+		})
+
+	mcp.AddTool(server, &mcp.Tool{Name: "close_http", Description: "[SSRF] Stop listening on an HTTP port."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args closeHTTPArgs) (*mcp.CallToolResult, any, error) {
+			if err := mgr.CloseHTTP(args.Port); err != nil {
+				return nil, nil, err
+			}
+			return nil, closeHTTPResult{Port: args.Port}, nil
 		})
 
 	return server
