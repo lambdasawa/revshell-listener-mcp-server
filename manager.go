@@ -9,7 +9,7 @@ import (
 type Port uint
 
 type ListenerManager struct {
-	listeners     map[Port]*Listener
+	tcpListeners  map[Port]*TCPListener
 	httpListeners map[Port]*HTTPListener
 }
 
@@ -20,15 +20,15 @@ type BackgroundError struct {
 
 func NewListenerManager() *ListenerManager {
 	m := &ListenerManager{
-		listeners:     make(map[Port]*Listener),
+		tcpListeners:  make(map[Port]*TCPListener),
 		httpListeners: make(map[Port]*HTTPListener),
 	}
 	return m
 }
 
 func (m *ListenerManager) GetStatus() []map[string]any {
-	items := make([]map[string]any, 0, len(m.listeners)+len(m.httpListeners))
-	for _, l := range m.listeners {
+	items := make([]map[string]any, 0, len(m.tcpListeners)+len(m.httpListeners))
+	for _, l := range m.tcpListeners {
 		items = append(items, map[string]any{
 			"id":         l.id,
 			"protocol":   "tcp",
@@ -51,20 +51,20 @@ func (m *ListenerManager) GetStatus() []map[string]any {
 	return items
 }
 
-func (m *ListenerManager) Listen(port Port) (*Listener, error) {
-	if _, exists := m.listeners[port]; exists {
-		return nil, fmt.Errorf("port %d already listening", port)
+func (m *ListenerManager) ListenTCP(port Port) (*TCPListener, error) {
+	if _, exists := m.tcpListeners[port]; exists {
+		return nil, fmt.Errorf("port %d already listening (tcp)", port)
 	}
 	if _, exists := m.httpListeners[port]; exists {
 		return nil, fmt.Errorf("port %d already listening (http)", port)
 	}
 
-	l := &Listener{
+	l := &TCPListener{
 		id:          uuid.New().String(),
 		backendPort: port,
 		logStore:    new(LogStore),
 	}
-	m.listeners[port] = l
+	m.tcpListeners[port] = l
 
 	if err := l.StartNgrokTunnel(); err != nil {
 		_ = l.Close()
@@ -86,7 +86,7 @@ func (m *ListenerManager) ListenHTTP(port Port) (*HTTPListener, error) {
 	if _, exists := m.httpListeners[port]; exists {
 		return nil, fmt.Errorf("port %d already listening (http)", port)
 	}
-	if _, exists := m.listeners[port]; exists {
+	if _, exists := m.tcpListeners[port]; exists {
 		return nil, fmt.Errorf("port %d already listening (tcp)", port)
 	}
 
@@ -112,12 +112,12 @@ func (m *ListenerManager) ListenHTTP(port Port) (*HTTPListener, error) {
 	return l, nil
 }
 
-func (m *ListenerManager) Close(port Port) error {
-	l, exists := m.listeners[port]
+func (m *ListenerManager) CloseTCP(port Port) error {
+	l, exists := m.tcpListeners[port]
 	if !exists {
-		return fmt.Errorf("port %d not listening", port)
+		return fmt.Errorf("port %d not listening (tcp)", port)
 	}
-	delete(m.listeners, port)
+	delete(m.tcpListeners, port)
 	return l.Close()
 }
 
@@ -131,19 +131,19 @@ func (m *ListenerManager) CloseHTTP(port Port) error {
 }
 
 func (m *ListenerManager) CloseAll() {
-	for _, l := range m.listeners {
+	for _, l := range m.tcpListeners {
 		_ = l.Close() // TODO: handle error
 	}
 	for _, l := range m.httpListeners {
 		_ = l.Close() // TODO: handle error
 	}
 
-	m.listeners = make(map[Port]*Listener)
+	m.tcpListeners = make(map[Port]*TCPListener)
 	m.httpListeners = make(map[Port]*HTTPListener)
 }
 
-func (m *ListenerManager) Get(port Port) (*Listener, bool) {
-	l, ok := m.listeners[port]
+func (m *ListenerManager) GetTCP(port Port) (*TCPListener, bool) {
+	l, ok := m.tcpListeners[port]
 	return l, ok
 }
 

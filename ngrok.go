@@ -18,7 +18,7 @@ type ngrokConfig struct {
 	} `yaml:"agent"`
 }
 
-func (l *Listener) StartNgrokTunnel() error {
+func (l *TCPListener) StartNgrokTunnel() error {
 	ctx := context.Background()
 
 	backendURL, err := url.Parse(fmt.Sprintf("tcp://127.0.0.1:%d", l.backendPort))

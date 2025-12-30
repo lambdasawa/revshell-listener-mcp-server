@@ -49,22 +49,22 @@ func (l *HTTPListener) Start() error {
 	return nil
 }
 
-func (l *HTTPListener) Close() error {
-	if l.server != nil {
-		if err := l.server.Close(); err != nil {
-			return err
+func (l *HTTPListener) Close() (returnErr error) {
+	if l.tunnel != nil {
+		if err := l.tunnel.Close(); err != nil {
+			return fmt.Errorf("failed to close ngrok tunnel: %v", err)
 		}
 	}
 
 	if l.ln != nil {
 		if err := l.ln.Close(); err != nil {
-			return err
+			return fmt.Errorf("failed to close listener: %v", err)
 		}
 	}
 
-	if l.tunnel != nil {
-		if err := l.tunnel.Close(); err != nil {
-			return err
+	if l.server != nil {
+		if err := l.server.Close(); err != nil {
+			return fmt.Errorf("failed to close http server: %v", err)
 		}
 	}
 

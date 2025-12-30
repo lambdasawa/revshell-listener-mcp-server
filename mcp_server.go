@@ -8,11 +8,11 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-type listenArgs struct {
+type listenTCPArgs struct {
 	Port Port `json:"port" jsonschema:"tcp port to listen"`
 }
 
-type listenResult struct {
+type listenTCPResult struct {
 	Port      Port   `json:"port" jsonschema:"tcp port"`
 	PublicURL string `json:"public_url,omitempty" jsonschema:"public tunnel URL"`
 }
@@ -26,11 +26,11 @@ type listenHTTPResult struct {
 	PublicURL string `json:"public_url,omitempty" jsonschema:"public tunnel URL"`
 }
 
-type closeArgs struct {
+type closeTCPArgs struct {
 	Port Port `json:"port" jsonschema:"tcp port to stop"`
 }
 
-type closeResult struct {
+type closeTCPResult struct {
 	Port Port `json:"port" jsonschema:"tcp port"`
 }
 
@@ -49,25 +49,25 @@ type statusResult struct {
 	Errors    []BackgroundError `json:"errors" jsonschema:"background errors"`
 }
 
-type sendArgs struct {
+type sendTCPArgs struct {
 	Port     Port   `json:"port" jsonschema:"tcp port"`
 	Data     string `json:"data" jsonschema:"payload"`
 	Encoding string `json:"encoding,omitempty" jsonschema:"utf8 or base64"`
 }
 
-type sendResult struct {
+type sendTCPResult struct {
 	Port  Port `json:"port" jsonschema:"tcp port"`
 	Bytes int  `json:"bytes" jsonschema:"bytes sent"`
 }
 
-type readArgs struct {
+type readTCPArgs struct {
 	Port     Port   `json:"port" jsonschema:"tcp port"`
 	Offset   int64  `json:"offset,omitempty" jsonschema:"read offset"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"max bytes to read"`
 	Encoding string `json:"encoding,omitempty" jsonschema:"utf8 or base64"`
 }
 
-type readResult struct {
+type readTCPResult struct {
 	Port      Port   `json:"port" jsonschema:"tcp port"`
 	Offset    int64  `json:"offset" jsonschema:"requested offset"`
 	Next      int64  `json:"next" jsonschema:"next offset"`
@@ -131,13 +131,13 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, result, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "listen", Description: "Start listening on a TCP port."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args listenArgs) (*mcp.CallToolResult, any, error) {
-			l, err := mgr.Listen(args.Port)
+	mcp.AddTool(server, &mcp.Tool{Name: "listen_tcp", Description: "Start listening on a TCP port."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args listenTCPArgs) (*mcp.CallToolResult, any, error) {
+			l, err := mgr.ListenTCP(args.Port)
 			if err != nil {
 				return nil, nil, err
 			}
-			result := listenResult{
+			result := listenTCPResult{
 				Port:      l.backendPort,
 				PublicURL: l.tunnel.URL(),
 			}
@@ -157,12 +157,12 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, result, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "close", Description: "Stop listening on a TCP port and close connections."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args closeArgs) (*mcp.CallToolResult, any, error) {
-			if err := mgr.Close(args.Port); err != nil {
+	mcp.AddTool(server, &mcp.Tool{Name: "close_tcp", Description: "Stop listening on a TCP port and close connections."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args closeTCPArgs) (*mcp.CallToolResult, any, error) {
+			if err := mgr.CloseTCP(args.Port); err != nil {
 				return nil, nil, err
 			}
-			return nil, closeResult{Port: args.Port}, nil
+			return nil, closeTCPResult{Port: args.Port}, nil
 		})
 
 	mcp.AddTool(server, &mcp.Tool{Name: "close_http", Description: "Stop listening on an HTTP port."},
@@ -173,29 +173,29 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 			return nil, closeHTTPResult{Port: args.Port}, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "send", Description: "Send data to a connection."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args sendArgs) (*mcp.CallToolResult, any, error) {
+	mcp.AddTool(server, &mcp.Tool{Name: "send_tcp", Description: "Send data to a TCP connection."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args sendTCPArgs) (*mcp.CallToolResult, any, error) {
 			data, err := decodeData(args.Data, args.Encoding)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			l, ok := mgr.Get(args.Port)
+			l, ok := mgr.GetTCP(args.Port)
 			if !ok {
-				return nil, nil, fmt.Errorf("port %d not listening", args.Port)
+				return nil, nil, fmt.Errorf("port %d not listening (tcp)", args.Port)
 			}
 
 			if err := l.Send(data); err != nil {
 				return nil, nil, err
 			}
-			return nil, sendResult{Port: args.Port, Bytes: len(data)}, nil
+			return nil, sendTCPResult{Port: args.Port, Bytes: len(data)}, nil
 		})
 
-	mcp.AddTool(server, &mcp.Tool{Name: "read", Description: "Read log bytes for a port with an offset/limit for scrolling."},
-		func(ctx context.Context, req *mcp.CallToolRequest, args readArgs) (*mcp.CallToolResult, any, error) {
-			l, ok := mgr.Get(args.Port)
+	mcp.AddTool(server, &mcp.Tool{Name: "read_tcp", Description: "Read TCP log bytes for a port with an offset/limit for scrolling."},
+		func(ctx context.Context, req *mcp.CallToolRequest, args readTCPArgs) (*mcp.CallToolResult, any, error) {
+			l, ok := mgr.GetTCP(args.Port)
 			if !ok {
-				return nil, nil, fmt.Errorf("port %d not listening", args.Port)
+				return nil, nil, fmt.Errorf("port %d not listening (tcp)", args.Port)
 			}
 
 			data, next, total, truncated := l.Read(args.Offset, args.Limit)
@@ -204,7 +204,7 @@ func newMCPServer(mgr *ListenerManager) *mcp.Server {
 				return nil, nil, err
 			}
 
-			result := readResult{
+			result := readTCPResult{
 				Port:      args.Port,
 				Offset:    args.Offset,
 				Next:      next,
