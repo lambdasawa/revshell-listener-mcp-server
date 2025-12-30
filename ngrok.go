@@ -43,6 +43,31 @@ func (l *Listener) StartNgrokTunnel() error {
 	return nil
 }
 
+func (l *HTTPListener) StartNgrokTunnel() error {
+	ctx := context.Background()
+
+	backendURL, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%d", l.backendPort))
+	if err != nil {
+		return fmt.Errorf("failed to parse backend URL: %v", err)
+	}
+
+	tunnelConfig := config.HTTPEndpoint()
+
+	token, err := ngrokAuthtokenFromConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get ngrok authtoken from config: %v", err)
+	}
+
+	tunnel, err := ngrok.ListenAndForward(ctx, backendURL, tunnelConfig, ngrok.WithAuthtoken(token))
+	if err != nil {
+		return fmt.Errorf("failed to start ngrok tunnel: %v", err)
+	}
+
+	l.tunnel = tunnel
+
+	return nil
+}
+
 func ngrokAuthtokenFromConfig() (string, error) {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
